@@ -1,298 +1,186 @@
-# OAI-5G-CORE
-## Prerequisite:
-* Suitable Docker-compose version for deploying `docker-compose-basic-nrf.yaml` file
-* For PLMN 00101, do [these](#in-oai-5g-core-we-have-to-configure-the-following-files) changes first.
+# OAI CN5G Deployment Guide
 
-## Nework Architecture
-![oai](./images/OAI-5g-Core.png)
-## Deployment:
+This repository provides guidance for deploying the OpenAirInterface (OAI) 5G Core (CN5G).
+
+> [!NOTE]
+> For the official documentation, please refer to the [OAI 5G Core Deployment Guide](https://gitlab.eurecom.fr/oai/openairinterface5g/-/blob/develop/doc/NR_SA_Tutorial_OAI_CN5G.md?ref_type=heads).
+
+## 1\. System Preparation
+
+**Perform these steps regardless of which deployment method you choose.**
+
+### 1.1 Hardware Requirements
+
+Ensure your machine meets the following specifications:
+
+| Component   | Minimum Specification    |
+| :---------- | :----------------------- |
+| **OS**      | Ubuntu 22.04 LTS         |
+| **CPU**     | 8 cores x86_64 @ 3.5 GHz |
+| **RAM**     | 32 GB                    |
+| **Network** | 2 Interfaces             |
+
+### 1.2 Install Pre-requisites & Docker
+
+Update your system and install the necessary tools and Docker engine.
+
 ```bash
-cd ~/OAI-5G-CORE/docker-compose/
-docker-compose -f docker-compose-basic-nrf.yaml up -d
-```
-#### In OAI-5G-CORE, we have to configure the following files:
-- `/docker-compose/docker-compose-basic-nrf.yaml`
-	- changing the version of images from `v1.4.0 --> develop`
-	- ***changing MCC, MNC, SD, SST, TAC*** --> setting `MCC=001` and `MNC=01` is important.
-	- ***adding Integrity/ciphering algorithms:*** `INT_ALGO_LIST` and `CIPH_ALGO_LIST` to secure the communication/(user data and signaling messages) between the UE and the 5G Core network.
-	- changing default DNS
-- `/docker-compose/docker-compose-basic-vpp-nrf.yaml`
-	- changing the version of images from `v1.4.0 --> develop`
+# 1. Update and install basic tools
+sudo apt update
+sudo apt install -y git net-tools putty unzip ca-certificates curl
 
-> NOTE: Here is the list of all the changes that needs to be done on fresh OAI-5G-CORE
-```patch
-diff --git a/docker-compose/docker-compose-basic-nrf.yaml b/docker-compose/docker-compose-basic-nrf.yaml
-index 1872e83..05fad08 100644
---- a/docker-compose/docker-compose-basic-nrf.yaml
-+++ b/docker-compose/docker-compose-basic-nrf.yaml
-@@ -4,7 +4,7 @@ services:
-         container_name: "mysql"
-         image: mysql:5.7
-         volumes:
--            - ./database/oai_db2.sql:/docker-entrypoint-initdb.d/oai_db.sql
-+            - ./database/oai_db.sql:/docker-entrypoint-initdb.d/oai_db.sql
-             - ./healthscripts/mysql-healthcheck2.sh:/tmp/mysql-healthcheck.sh
-@@ -22,7 +22,7 @@ services:
-                 ipv4_address: 192.168.70.131
-     oai-udr:
-         container_name: "oai-udr"
--        image: oai-udr:v1.4.0
-+        image: oaisoftwarealliance/oai-udr:develop
-@@ -53,7 +53,7 @@ services:
-                 ipv4_address: 192.168.70.136
-     oai-udm:
-         container_name: "oai-udm"
--        image: oai-udm:v1.4.0
-+        image: oaisoftwarealliance/oai-udm:develop
-@@ -81,7 +81,7 @@ services:
-                 ipv4_address: 192.168.70.137
-     oai-ausf:
-         container_name: "oai-ausf"
--        image: oai-ausf:v1.4.0
-+        image: oaisoftwarealliance/oai-ausf:develop
-@@ -108,7 +108,7 @@ services:
-                 ipv4_address: 192.168.70.138
-     oai-nrf:
-         container_name: "oai-nrf"
--        image: oai-nrf:v1.4.0
-+        image: oaisoftwarealliance/oai-nrf:develop
-@@ -122,32 +122,32 @@ services:
-                 ipv4_address: 192.168.70.130
-     oai-amf:
-         container_name: "oai-amf"
--        image: oai-amf:v1.4.0
-+        image: oaisoftwarealliance/oai-amf:develop
-         environment:
-             - TZ=Europe/paris
-             - INSTANCE=0
-             - PID_DIRECTORY=/var/run
--            - MCC=208
--            - MNC=95
-+            - MCC=001
-+            - MNC=01
-             - REGION_ID=128
-             - AMF_SET_ID=1
--            - SERVED_GUAMI_MCC_0=208
--            - SERVED_GUAMI_MNC_0=95
-+            - SERVED_GUAMI_MCC_0=001
-+            - SERVED_GUAMI_MNC_0=01
-             - SERVED_GUAMI_REGION_ID_0=128
-             - SERVED_GUAMI_AMF_SET_ID_0=1
-             - SERVED_GUAMI_MCC_1=460
-             - SERVED_GUAMI_MNC_1=11
-             - SERVED_GUAMI_REGION_ID_1=10
-             - SERVED_GUAMI_AMF_SET_ID_1=1
--            - PLMN_SUPPORT_MCC=208
--            - PLMN_SUPPORT_MNC=95
--            - PLMN_SUPPORT_TAC=0xa000
-+            - PLMN_SUPPORT_MCC=001
-+            - PLMN_SUPPORT_MNC=01
-+            - PLMN_SUPPORT_TAC=0x0001
-             - SST_0=1
--            - SD_0=0xFFFFFF
-+            - SD_0=0x1
-             - SST_1=1
--            - SD_1=1
--            - SST_2=222
--            - SD_2=123
-+            - SD_1=0x2
-+            - SST_2=1
-+            - SD_2=0x3
-             - AMF_INTERFACE_NAME_FOR_NGAP=eth0
-             - AMF_INTERFACE_NAME_FOR_N11=eth0
-             - SMF_INSTANCE_ID_0=1
-@@ -164,6 +164,7 @@ services:
-             - MYSQL_USER=root
-             - MYSQL_PASS=linux
-             - MYSQL_DB=oai_db
-+            - OPERATOR_KEY=1006020f0a478bf6b699f15c062e42b3
-             - NRF_IPV4_ADDRESS=192.168.70.130
-             - NRF_PORT=80
-             - EXTERNAL_NRF=no
-@@ -184,6 +185,8 @@ services:
-             - UDM_PORT=80
-             - UDM_API_VERSION=v2
-             - UDM_FQDN=oai-udm
-+            - INT_ALGO_LIST=["NIA1", "NIA2"]
-+            - CIPH_ALGO_LIST=["NEA0", "NEA2"]
-@@ -193,7 +196,7 @@ services:
-                 ipv4_address: 192.168.70.132
-     oai-smf:
-         container_name: "oai-smf"
--        image: oai-smf:v1.4.0
-+        image: oaisoftwarealliance/oai-smf:develop
-         environment:
-             - TZ=Europe/Paris
-             - INSTANCE=0
-@@ -203,8 +206,8 @@ services:
-             - SMF_INTERFACE_PORT_FOR_SBI=80
-             - SMF_INTERFACE_HTTP2_PORT_FOR_SBI=9090
-             - SMF_API_VERSION=v1
--            - DEFAULT_DNS_IPV4_ADDRESS=172.21.3.100
--            - DEFAULT_DNS_SEC_IPV4_ADDRESS=8.8.8.8
-+            - DEFAULT_DNS_IPV4_ADDRESS=8.8.8.8
-+            - DEFAULT_DNS_SEC_IPV4_ADDRESS=4.4.4.4
-             - AMF_IPV4_ADDRESS=192.168.70.132
-             - AMF_PORT=80
-             - AMF_API_VERSION=v1
-@@ -228,25 +231,25 @@ services:
-             - UE_MTU=1500
-             - DNN_NI0=oai
-             - TYPE0=IPv4
--            - DNN_RANGE0=12.1.1.151 - 12.1.1.253
-+            - DNN_RANGE0=12.1.1.2 - 12.1.1.253
-             - NSSAI_SST0=1
--            - NSSAI_SD0=0xFFFFFF
--            - SESSION_AMBR_UL0=200Mbps
--            - SESSION_AMBR_DL0=400Mbps
--            - DNN_NI1=oai.ipv4
-+            - NSSAI_SD0=0x1
-+            - SESSION_AMBR_UL0=10000Mbps
-+            - SESSION_AMBR_DL0=10000Mbps
-+            - DNN_NI1=oai2
-             - TYPE1=IPv4
--            - DNN_RANGE1=12.1.1.51 - 12.1.1.150
-+            - DNN_RANGE1=12.1.2.2 - 12.1.2.253
-             - NSSAI_SST1=1
--            - NSSAI_SD1=1
--            - SESSION_AMBR_UL1=100Mbps
--            - SESSION_AMBR_DL1=200Mbps
--            - DNN_NI2=default
-+            - NSSAI_SD1=0x2
-+            - SESSION_AMBR_UL1=10000Mbps
-+            - SESSION_AMBR_DL1=10000Mbps
-+            - DNN_NI2=oai3
-             - TYPE2=IPv4
--            - DNN_RANGE2=12.1.1.2 - 12.1.1.50
--            - NSSAI_SST2=222
--            - NSSAI_SD2=123
--            - SESSION_AMBR_UL2=50Mbps
--            - SESSION_AMBR_DL2=100Mbps
-+            - DNN_RANGE2=12.1.3.2 - 12.1.3.253
-+            - NSSAI_SST2=1
-+            - NSSAI_SD2=0x3
-+            - SESSION_AMBR_UL2=10000Mbps
-+            - SESSION_AMBR_DL2=10000Mbps
-             - DNN_NI3=ims
-             - TYPE3=IPv4v6
-             - DNN_RANGE3=14.1.1.2 - 14.1.1.253
-@@ -260,7 +263,7 @@ services:
-                 ipv4_address: 192.168.70.133
-     oai-spgwu:
-         container_name: "oai-spgwu"
--        image: oai-spgwu-tiny:v1.4.0
-+        image: oaisoftwarealliance/oai-spgwu-tiny:develop
-@@ -271,10 +274,10 @@ services:
-             - NETWORK_UE_IP=12.1.1.0/24
-             - SPGWC0_IP_ADDRESS=192.168.70.133
-             - BYPASS_UL_PFCP_RULES=no
--            - MCC=208
--            - MNC=95
--            - MNC03=095
--            - TAC=40960
-+            - MCC=001
-+            - MNC=01
-+            - MNC03=001
-+            - TAC=1
-             - GW_ID=1
-             - THREAD_S1U_PRIO=80
-             - S1U_THREADS=8
-@@ -292,14 +295,14 @@ services:
-             - NRF_API_VERSION=v1
-             - NRF_FQDN=oai-nrf
-             - NSSAI_SST_0=1
--            - NSSAI_SD_0=0xFFFFFF
-+            - NSSAI_SD_0=0x1
-             - DNN_0=oai
-             - NSSAI_SST_1=1
--            - NSSAI_SD_1=1
--            - DNN_1=oai.ipv4
--            - NSSAI_SST_2=222
--            - NSSAI_SD_2=123
--            - DNN_2=default
-+            - NSSAI_SD_1=0x2
-+            - DNN_1=oai2
-+            - NSSAI_SST_2=1
-+            - NSSAI_SD_2=0x3
-+            - DNN_2=oai3
-         depends_on:
-             - oai-nrf
-             - oai-smf
-@@ -313,13 +316,13 @@ services:
-             public_net:
-                 ipv4_address: 192.168.70.134
-     oai-ext-dn:
--        image: trf-gen-cn5g:latest
-+        image: oaisoftwarealliance/trf-gen-cn5g:latest
-         privileged: true
--        init: true
-         container_name: oai-ext-dn
-         entrypoint: /bin/bash -c \
--              "ip route add 12.1.1.0/24 via 192.168.70.134 dev eth0; ip route; sleep infinity"
--        command: ["/bin/bash", "-c", "trap : SIGTERM SIGINT; sleep infinity & wait"]
-+              "ip route add 12.1.1.0/24 via 192.168.70.134 dev eth0; sleep infinity"
-+        depends_on:
-+            - oai-spgwu
-         healthcheck:
-             test: /bin/bash -c "ip r | grep 12.1.1"
-             interval: 10s
-diff --git a/docker-compose/docker-compose-basic-vpp-nrf.yaml b/docker-compose/docker-compose-basic-vpp-nrf.yaml
-index fcbd7d2..06ab73d 100644
---- a/docker-compose/docker-compose-basic-vpp-nrf.yaml
-+++ b/docker-compose/docker-compose-basic-vpp-nrf.yaml
-@@ -22,7 +22,7 @@ services:
-                 ipv4_address: 192.168.70.131
-     oai-udr:
-         container_name: "oai-udr"
--        image: oai-udr:v1.4.0
-+        image: oaisoftwarealliance/oai-udr:develop
-@@ -51,7 +51,7 @@ services:
-                 ipv4_address: 192.168.70.136
-     oai-udm:
-         container_name: "oai-udm"
--        image: oai-udm:v1.4.0
-+        image: oaisoftwarealliance/oai-udm:develop
-@@ -77,7 +77,7 @@ services:
-                 ipv4_address: 192.168.70.137
-     oai-ausf:
-         container_name: "oai-ausf"
--        image: oai-ausf:v1.4.0
-+        image: oaisoftwarealliance/oai-ausf:develop
-@@ -102,7 +102,7 @@ services:
-                 ipv4_address: 192.168.70.138
-     oai-nrf:
-         container_name: "oai-nrf"
--        image: oai-nrf:v1.4.0
-+        image: oaisoftwarealliance/oai-nrf:develop
-@@ -115,7 +115,7 @@ services:
-                 ipv4_address: 192.168.70.130
-     oai-amf:
-         container_name: "oai-amf"
--        image: oai-amf:v1.4.0
-+        image: oaisoftwarealliance/oai-amf:develop
-@@ -185,7 +185,7 @@ services:
-                 ipv4_address: 192.168.70.132
-     oai-smf:
-         container_name: "oai-smf"
--        image: oai-smf:v1.4.0
-+        image: oaisoftwarealliance/oai-smf:develop
-@@ -227,7 +227,7 @@ services:
-             public_net:
-                 ipv4_address: 192.168.70.133
-     vpp-upf:
--        image: oai-upf-vpp:v1.4.0
-+        image: rdefosseoai/oai-upf-vpp
-         privileged: true
-         container_name: "vpp-upf"
-         environment:
-@@ -270,7 +270,7 @@ services:
-             public_net_core:
-                 ipv4_address: 192.168.73.134
-     oai-ext-dn:
--        image: trf-gen-cn5g:latest
-+        image: oaisoftwarealliance/trf-gen-cn5g:latest
-         privileged: true
-         init: true
-         container_name: "oai-ext-dn"
-         
+# 2. Add Docker's official GPG key
+sudo install -m 0755 -d /etc/apt/keyrings
+sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+sudo chmod a+r /etc/apt/keyrings/docker.asc
+
+# 3. Add the repository to Apt sources
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+# 4. Install Docker packages
+sudo apt update
+sudo apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin docker-compose
+
+# 5. Add current user to docker group (avoids using sudo for docker)
+sudo usermod -a -G docker $(whoami)
 ```
+
+> [!TIP]
+> Log out and back in to apply group changes or run `su - $USER` to start a new session.
+
+### 1.3 Enable IP Forwarding
+
+This is required for the core network functions to route traffic correctly.
+
+```bash
+sudo sysctl net.ipv4.conf.all.forwarding=1
+sudo iptables -P FORWARD ACCEPT
+```
+
+## 2\. Deployment Options
+
+Choose **one** of the following methods.
+
+### Option A: Quick Start (Docker Compose)
+
+Use this method for a fast, pre-packaged tutorial setup.
+
+**1. Download Configuration Files**
+
+```bash
+wget -O ~/oai-cn5g.zip https://gitlab.eurecom.fr/oai/openairinterface5g/-/archive/develop/openairinterface5g-develop.zip?path=doc/tutorial_resources/oai-cn5g
+unzip ~/oai-cn5g.zip
+mv ~/openairinterface5g-develop-doc-tutorial_resources-oai-cn5g/doc/tutorial_resources/oai-cn5g ~/oai-cn5g
+rm -r ~/openairinterface5g-develop-doc-tutorial_resources-oai-cn5g ~/oai-cn5g.zip
+```
+
+**2. Pull Images & Start**
+
+```bash
+cd ~/oai-cn5g
+docker compose pull
+docker compose up -d
+```
+
+**Stop the Network**
+
+```bash
+cd ~/oai-cn5g
+docker compose down
+```
+
+### Option B: Advanced Source Deployment (python wrapper)
+
+Use this method if you need to patch configurations, develop features, or use the OAI python wrapper scripts.
+
+**1. Clone the Repository**
+
+```bash
+git clone https://gitlab.eurecom.fr/oai/cn5g/oai-cn5g-fed.git
+cd oai-cn5g-fed/
+git checkout v2.0.1
+```
+
+**2. Sync Components**
+
+This pulls the submodule references for the specific network functions.
+
+```bash
+./scripts/syncComponents.sh
+```
+
+**3. Apply Configuration Patches**
+
+You need to update the `nrf` config and the `mysql` database initialization to ensure consistent user profiles.
+
+**Method A: Apply via Git (Recommended)**
+
+If you have the patch file ready:
+
+```bash
+git apply patch-files/oai-cn5g-fed.patch
+```
+
+**Method B: Manual Edit**
+
+If you want to manually edit the files, make the following changes:
+
+```patch
+diff --git a/docker-compose/conf/basic_nrf_config.yaml b/docker-compose/conf/basic_nrf_config.yaml
+index c55f7c9..acbf4d2 100644
+--- a/docker-compose/conf/basic_nrf_config.yaml
++++ b/docker-compose/conf/basic_nrf_config.yaml
+@@ -222,7 +222,7 @@ upf:
+   support_features:
+     enable_bpf_datapath: no    # If "on": BPF is used as datapath else simpleswitch is used, DEFAULT= off
+     enable_snat: yes           # If "on": Source natting is done for UE, DEFAULT= off
+-  remote_n6_gw: localhost      # Dummy host since simple-switch does not use N6 GW
++  remote_n6_gw: 127.0.0.1      # Dummy host since simple-switch does not use N6 GW
+   smfs:
+     - host: oai-smf            # To be used for PFCP association in case of no-NRF
+   upf_info:
+diff --git a/docker-compose/database/oai_db2.sql b/docker-compose/database/oai_db2.sql
+index 35cb957..f854dc1 100755
+--- a/docker-compose/database/oai_db2.sql
++++ b/docker-compose/database/oai_db2.sql
+@@ -77,6 +77,7 @@ CREATE TABLE `AccessAndMobilitySubscriptionData` (
+ ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+ INSERT INTO `AccessAndMobilitySubscriptionData` (`ueid`, `servingPlmnid`, `nssai`) VALUES
++('208950000000031', '20895','{\"defaultSingleNssais\": [{\"sst\": 1, \"sd\": \"0xffffff\"}]}'),
+ ('208950000000125', '20895','{\"defaultSingleNssais\": [{\"sst\": 1, \"sd\": \"1\"}]}'),
+ ('208950000000126', '20895','{\"defaultSingleNssais\": [{\"sst\": 1, \"sd\": \"1\"}]}'),
+ ('208950000000127', '20895','{\"defaultSingleNssais\": [{\"sst\": 1, \"sd\": \"1\"}]}'),
+@@ -311,7 +312,7 @@ CREATE TABLE `SessionManagementSubscriptionData` (
+ --
+
+ INSERT INTO `SessionManagementSubscriptionData` (`ueid`, `servingPlmnid`, `singleNssai`, `dnnConfigurations`) VALUES
+-('208950000000031', '20895', '{\"sst\": 222, \"sd\": \"123\"}','{\"default\":{\"pduSessionTypes\":{ \"defaultSessionType\": \"IPV4\"},\"sscModes\": {\"defaultSscMode\": \"SSC_MODE_1\"},\"5gQosProfile\": {\"5qi\": 6,\"arp\":{\"priorityLevel\": 1,\"preemptCap\": \"NOT_PREEMPT\",\"preemptVuln\":\"NOT_PREEMPTABLE\"},\"priorityLevel\":1},\"sessionAmbr\":{\"uplink\":\"100Mbps\", \"downlink\":\"100Mbps\"},\"staticIpAddress\":[{\"ipv4Addr\": \"12.1.1.4\"}]}}');
++('208950000000031', '20895', '{\"sst\": 1, \"sd\": \"0xffffff\"}','{\"oai\":{\"pduSessionTypes\":{ \"defaultSessionType\": \"IPV4\"},\"sscModes\": {\"defaultSscMode\": \"SSC_MODE_1\"},\"5gQosProfile\": {\"5qi\": 6,\"arp\":{\"priorityLevel\": 1,\"preemptCap\": \"NOT_PREEMPT\",\"preemptVuln\":\"NOT_PREEMPTABLE\"},\"priorityLevel\":1},\"sessionAmbr\":{\"uplink\":\"100Mbps\", \"downlink\":\"100Mbps\"},\"staticIpAddress\":[{\"ipv4Addr\": \"12.1.1.4\"}]}}');
+ INSERT INTO `SessionManagementSubscriptionData` (`ueid`, `servingPlmnid`, `singleNssai`, `dnnConfigurations`) VALUES
+ ('208950000000032', '20895', '{\"sst\": 222, \"sd\": \"123\"}','{\"default\":{\"pduSessionTypes\":{ \"defaultSessionType\": \"IPV4\"},\"sscModes\": {\"defaultSscMode\": \"SSC_MODE_1\"},\"5gQosProfile\": {\"5qi\": 6,\"arp\":{\"priorityLevel\": 1,\"preemptCap\": \"NOT_PREEMPT\",\"preemptVuln\":\"NOT_PREEMPTABLE\"},\"priorityLevel\":1},\"sessionAmbr\":{\"uplink\":\"100Mbps\", \"downlink\":\"100Mbps\"}}}');
+ -- --------------------------------------------------------
+```
+
+**4. Deploy the Core**
+
+Use the Python wrapper script to start the "Basic" scenario (AMF, SMF, UPF, NRF).
+
+```bash
+cd docker-compose
+python3 core-network.py --type start-basic --scenario 1
+```
+
+![basic deployment](./images/basic-deployment-01.png)
+![basic deployment](./images/basic-deployment-02.png)
+
+**Stop the Core**
+
+```bash
+python3 core-network.py --type stop-basic --scenario 1
+```
+
+> [!WARNING]  
+> Do not abruptly power off your VM. Sudden shutdowns can corrupt NRF registration state and cause inconsistent network-function discovery. Always stop the core properly before shutting down the machine.
+
+Follow the [ngkore/OAI-RAN](https://github.com/ngkore/OAI-RAN) guide to build and configure the RAN components (gNB and nrUE).
