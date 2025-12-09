@@ -2,6 +2,8 @@
 
 This repository provides guidance for deploying the OpenAirInterface (OAI) 5G Core (CN5G).
 
+![oai cn5g deployment flow](./images/oai-5gc-deployment.png)
+
 > [!NOTE]
 > For the official documentation, please refer to the [OAI 5G Core Deployment Guide](https://gitlab.eurecom.fr/oai/openairinterface5g/-/blob/develop/doc/NR_SA_Tutorial_OAI_CN5G.md?ref_type=heads).
 
